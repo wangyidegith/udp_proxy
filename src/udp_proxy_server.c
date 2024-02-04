@@ -145,7 +145,7 @@ static int proxyCli2Dst(Epoll_Ptr_t* ep) {
 
 		// fill dst_ep
 		struct epoll_event event;
-		event.events = EPOLLIN;
+		event.events = EPOLLIN | EPOLLET;
 		dst_ep = (Epoll_Ptr_t*)malloc(sizeof(Epoll_Ptr_t));
 		memset((void*)dst_ep, 0x00, sizeof(Epoll_Ptr_t));
 		dst_ep->sock_type = DST;
@@ -291,7 +291,7 @@ static void* udpProxyServer(void* arg) {
 		pthread_exit((void*)-1);
 	}
 	// put clients_fd to epoll
-	event.events = EPOLLIN;
+	event.events = EPOLLIN | EPOLLET;
 	Epoll_Ptr_t* ep = (Epoll_Ptr_t*)malloc(sizeof(Epoll_Ptr_t));
 	memset((void*)ep, 0x00, sizeof(Epoll_Ptr_t));
 	ep->sock_type = CLIENTS;
