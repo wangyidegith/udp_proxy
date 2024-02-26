@@ -40,7 +40,9 @@ int main(int argc, char* argv[]) {
 	int send_ret, recv_ret;
 	char ip[16] = {0};
 	unsigned short port;
-	char* send_msg = "hello";
+	char send_msg[65507] = {0};
+	fgets(send_msg, 65507, stdin);
+	send_msg[strcspn(send_msg, "\n")] = '\0';
 	size_t recv_msg_len;
 	while (1) {
 		// send

@@ -2,6 +2,7 @@
 #include <string.h>
 #include <netinet/in.h>
 #include <time.h>
+#include <sys/select.h>
 
 #include "hash_table.h"
 

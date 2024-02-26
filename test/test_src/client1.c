@@ -26,7 +26,7 @@ int main(int argc, char* argv[]) {
     if (h == NULL) {
         return 1;
     }
-    char msg[UDP_RECV_BUF_SIZE] = {0};
+    char msg[10000] = {0};
     struct sockaddr_in dst_addr, from_addr;
     memset((void*)&dst_addr, 0, sizeof(dst_addr));
     memset((void*)&from_addr, 0, sizeof(from_addr));
@@ -41,6 +41,7 @@ int main(int argc, char* argv[]) {
     char ip[16] = {0};
     unsigned short port;
     char* send_msg = "Hello, I only send once message.";
+    size_t recv_msg_len;
     while (1) {
         // send
         send_ret = sendmsg_by_udp_proxy(h, send_msg, strlen(send_msg), &dst_addr);
@@ -51,11 +52,11 @@ int main(int argc, char* argv[]) {
         bzero((void*)ip, 16);
         sockaddrToIPv4String(&dst_addr, ip, 16);
         port = ntohs(dst_addr.sin_port);
-        printf("sent %s to %s:%hu\n", send_msg, ip, port);
+        printf("sent %s to %s:%hu, len is %ld\n", send_msg, ip, port, strlen(send_msg));
 
         // recv
         bzero((void*)msg, sizeof(msg));
-        recv_ret = recvmsg_by_udp_proxy(h, msg, &from_addr);
+        recv_ret = recvmsg_by_udp_proxy(h, msg, &recv_msg_len, &from_addr);
         if (recv_ret) {
             fprintf(stderr, "Err: recvmsg_by_udp_proxy\n");
             break;
@@ -63,7 +64,7 @@ int main(int argc, char* argv[]) {
         bzero((void*)ip, 16);
         sockaddrToIPv4String(&from_addr, ip, 16);
         port = ntohs(from_addr.sin_port);
-        printf("recv %s from %s:%hu\n", msg, ip, port);
+	printf("recv %s from %s:%hu, len is %ld\n", msg, ip, port, recv_msg_len);
         printf("-------\n");
         sleep(10000);
     }

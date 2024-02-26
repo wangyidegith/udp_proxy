@@ -8,7 +8,7 @@
 
 #include "public.h"
 
-void encode(const char* data, size_t data_len, struct sockaddr_in* dst, char* packet_buf) {
+void encode(const char* data, const size_t data_len, const struct sockaddr_in* dst, char* packet_buf) {
 	if (packet_buf == NULL) {
 		return;
 	}

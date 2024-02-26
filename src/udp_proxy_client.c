@@ -5,19 +5,18 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <netdb.h>
-#include <sys/epoll.h>
 #include <errno.h>
 #include <fcntl.h>
 
-#include "public/public.h"
 #include "udp_proxy.h"
+#include "public/public.h"
 
 typedef struct UPC_Handle_t {
 	int udp_fd;
 	struct sockaddr_in proxy_addr;
 }UPC_Handle;
 
-UPC_Handle* udp_proxy_init(const char* proxy_server_ip, unsigned short proxy_server_port) {
+UPC_Handle* udp_proxy_init(const char* proxy_server_ip, const unsigned short proxy_server_port) {
 	if (strlen(proxy_server_ip) > IPv4_BUF_SIZE - 1) {
 		fprintf(stderr, "Err: proxy_server_ip too long.\n");
 		return NULL;
@@ -37,7 +36,7 @@ UPC_Handle* udp_proxy_init(const char* proxy_server_ip, unsigned short proxy_ser
 	return h;
 }
 
-int sendmsg_by_udp_proxy(UPC_Handle* h, const char* msg, size_t msg_len, struct sockaddr_in* dst) {
+int sendmsg_by_udp_proxy(UPC_Handle* h, const char* msg, const size_t msg_len, const struct sockaddr_in* dst) {
 	// encode msg to packet
 	char send_buf[UDP_PROXY_PACKET_HEAD_LEN + msg_len + 1];
 	memset((void*)send_buf, 0x00, sizeof(send_buf));
@@ -45,19 +44,19 @@ int sendmsg_by_udp_proxy(UPC_Handle* h, const char* msg, size_t msg_len, struct 
 
 	// sendto
 	ssize_t send_ret = sendto(h->udp_fd, send_buf, UDP_PROXY_PACKET_HEAD_LEN + msg_len, 0, (struct sockaddr*)&(h->proxy_addr), sizeof(struct sockaddr));
-	if (send_ret <= 0) {
+	if (send_ret == -1) {
 		perror("sendto");
 		return -1;
 	}
 	return 0;
 }
 
-int recvmsg_by_udp_proxy(UPC_Handle* h, char* msg, struct sockaddr_in* from) {
+int recvmsg_by_udp_proxy(UPC_Handle* h, char* msg, size_t* msg_len, struct sockaddr_in* from) {
 	// recvfrom fisrt
-	char recv_buf[UDP_RECV_BUF_SIZE];
-	memset((void*)recv_buf, 0x00, sizeof(recv_buf));
+	char* recv_buf = (char*)malloc(UDP_RECV_BUF_SIZE);
+	memset((void*)recv_buf, 0x00, UDP_RECV_BUF_SIZE);
 	ssize_t recv_ret = recvfrom(h->udp_fd, recv_buf, UDP_PROXY_PACKET_HEAD_LEN, MSG_PEEK, NULL, NULL);
-	if (recv_ret < 0) {
+	if (recv_ret == -1) {
 		fprintf(stderr, "Err: the first recvfrom.\n");
 		perror("recvfrom");
 		return -1;
@@ -66,24 +65,26 @@ int recvmsg_by_udp_proxy(UPC_Handle* h, char* msg, struct sockaddr_in* from) {
 	// recvfrom second
 	UDP_Proxy_Packet* upp = decode(recv_buf);
 	size_t data_len = upp->data_len;
+	if (data_len > MAX_DATA_LEN) {
+		free(recv_buf);
+		recv_buf = (char*)malloc(data_len + UDP_PROXY_PACKET_HEAD_LEN + 1);
+		memset((void*)recv_buf, 0x00, data_len + UDP_PROXY_PACKET_HEAD_LEN + 1);
+	}
 	struct sockaddr_in proxy_addr;
 	socklen_t addr_len;
 	recv_ret = recvfrom(h->udp_fd, recv_buf, UDP_PROXY_PACKET_HEAD_LEN + data_len, 0, (struct sockaddr*)&proxy_addr, &addr_len);
-	if (recv_ret < 0) {
+	if (recv_ret == -1) {
 		fprintf(stderr, "Err: the second recvfrom.\n");
 		perror("recvfrom");
-		return -1;
-	}
-
-	// only from proxy
-	if (proxy_addr.sin_addr.s_addr != h->proxy_addr.sin_addr.s_addr || proxy_addr.sin_port != h->proxy_addr.sin_port) {
 		return -1;
 	}
 
 	// out
 	memcpy((void*)from, (void*)&(upp->dst), sizeof(struct sockaddr));
 	memcpy((void*)msg, (void*)(recv_buf + UDP_PROXY_PACKET_HEAD_LEN), data_len);
+	*msg_len = recv_ret - UDP_PROXY_PACKET_HEAD_LEN;
 
+	free(recv_buf);
 	return 0;
 }
 

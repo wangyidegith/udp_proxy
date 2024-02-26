@@ -14,7 +14,7 @@ def udp_echo_server(host, port):
 
     while True:
         # Set memory to zero before each recvfrom operation
-        data = bytearray(1024)
+        data = bytearray(8192)
         # Receive data from the client
         received_bytes, client_address = server_socket.recvfrom_into(data)
 
